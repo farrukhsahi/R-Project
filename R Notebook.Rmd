@@ -1,0 +1,289 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+**Data Cleansing**
+
+```{r}
+# Loading the train file
+train_data <- read.csv("Data/train.csv")
+
+# Removing the last column from the data frame to making the file compatible with test file
+train_data <- train_data[,-ncol(train_data)]
+
+# Saving the modified data frame as a new CSV file
+write.csv(train_data, file = "Data/modified_train.csv", row.names = FALSE)
+
+
+# Loading the modified train file into data frame
+modified_train_data <-read.csv("Data/modified_train.csv")
+
+head(modified_train_data)
+```
+```{r}
+# Loading the test file
+test_data <- read.csv("Data/test.csv")
+head(test_data)
+```
+```{r}
+# Concatenating both files into one file for further data analysis
+combined_data <- rbind(modified_train_data, test_data)
+
+# Save the combined data frame to a new CSV file
+write.csv(combined_data, file = "Data/combined_data.csv", row.names = FALSE)
+
+# Loading the combined data file into a data frame
+combined_data <- read.csv("Data/combined_data.csv")
+
+head(combined_data)
+```
+```{r}
+# Checking the number of rows in the combined_data
+last_row_number <- nrow(combined_data)
+print(last_row_number)
+```
+Both files have been merged accurately because train file consists 8693 rows and test file 4277 and sum of the both are 12970.
+
+When I analyzed the combined_data file. I noticed missing values in every column except for the PassengerId.For better data analysis, I filled missing values based on my different assumptions.
+
+There are 288 missing values in HomePlanet column. I am assuming an "Unknown" HomePlanet for these.
+
+```{r}
+# Filling missing value in HomePlanet column with "Unknown"
+combined_data$HomePlanet[combined_data$HomePlanet == ""] <- "Unknown"
+```
+Validating whether the blank value has been filled
+```{r}
+unknown_planet <- combined_data[combined_data$HomePlanet == "Unknown", ]
+
+# View the filtered dataframe
+head(unknown_planet)
+```
+
+There are 388 blank and "NA" values in CryoSleep column. To handle this. I am replacing them with the most frequent value (mode).
+```{r}
+# Loading the dplyr package
+library(dplyr)
+
+# Calculate the mode of the CryoSleep column
+mode_cryosleep <- names(sort(table(combined_data$CryoSleep), decreasing = TRUE))[1]
+
+# Fill NA and blank values in the CryoSleep column with the mode value
+combined_data$CryoSleep[is.na(combined_data$CryoSleep) | combined_data$CryoSleep == ""] <- mode_cryosleep
+```
+
+There are 299 missing values in "Cabin" column. To handle this. I am replacing them with "Unknown"
+```{r}
+combined_data$Cabin[combined_data$Cabin == ""] <- "Unknown"
+```
+Validating whether the blank values have been filled
+```{r}
+unknown_cabin <- combined_data[combined_data$Cabin == "Unknown", ]
+
+# View the filtered dataframe
+head(unknown_cabin)
+```
+
+There are 274 missing values in "Destination" column. To handle this. I am replacing them with "Unknown"
+```{r}
+combined_data$Destination[combined_data$Destination == ""] <- "Unknown"
+```
+Validating whether the blank values have been filled
+```{r}
+unknown_destination <- combined_data[combined_data$Destination == "Unknown", ]
+
+# View the filtered dataframe
+head(unknown_destination)
+```
+There are 530 values in "Age" column where "0" or "NA" is written.
+
+First, I am replacing "O" with NA so that it indicate missing data
+```{r}
+combined_data$Age[combined_data$Age == "0"] <= NA
+```
+Imputing the missing values using mean
+```{r}
+# Converting age column to numeric
+combined_data$Age <- as.numeric(combined_data$Age)
+
+# Calculating the mean age (excluding NA values)
+mean_age <- mean(combined_data$Age, na.rm = TRUE)
+
+# Imputing missing values with the mean age
+combined_data$Age[is.na(combined_data$Age)] <- mean_age
+```
+I am assuming "0" age is reflecting infants in data set
+
+There are 296 values in "VIP" column which are "blank" or "NA" text written. I am assuming all these passengers did not adopt VIP service and replacing all those with as "False" 
+```{r}
+combined_data$VIP[is.na(combined_data$VIP) | combined_data$VIP == ""] <- "False"
+```
+
+There are billing columns named as RoomService, FoodCourt, ShoppingMall, Spa and VRDeck Where text "NA" is appearing in some values. I am assuming passengers are not charged with any bill against "NA". I am replacing all "NA" with "0(Zero)" all at once.
+
+```{r}
+# Define the billing columns
+billing_columns <- c("RoomService", "FoodCourt", "ShoppingMall", "Spa", "VRDeck")
+
+# Replace "NA" with "0" in billing columns
+combined_data[billing_columns] <- lapply(combined_data[billing_columns], function(x) replace(x, is.na(x) | x == "NA", "0"))
+```
+
+Converting the billing amounts to numeric format would be beneficial to plan to perform numerical calculations or analysis on these columns. It would allow to perform arithmetic operations, calculate statistics, and create visualizations based on the billing amounts.
+
+```{r}
+combined_data[billing_columns] <- lapply(combined_data[billing_columns], as.numeric)
+```
+
+I am entering a new column summing up all billing columns, showing total amount of bills charged against each passenger. It provides a comprehensive view of the total amount billed across all categories, which can be useful for financial analysis or reporting later.
+```{r}
+combined_data$TotalBilling <- rowSums(combined_data[billing_columns], na.rm = TRUE)
+```
+There are 294 missing values in "Name" column. To handle this. I am replacing them with "Unknown"
+```{r}
+combined_data$Name[is.na(combined_data$Name) | combined_data$Name == ""] <- "Unknown"
+```
+
+```{r}
+# Saving the cleaned DataFrame as a new CSV file
+write.csv(combined_data, file = "Data/cleaned_data.csv", row.names = FALSE)
+```
+
+Loading cleaned_data
+```{r}
+cleaned_data <- read.csv("Data/cleaned_data.csv")
+
+# Displaying the first few rows of the dataset
+head(cleaned_data)
+```
+            
+**Data Exploration*
+Summary Statistics:
+Computing summary statistics (mean, median, min, max) for numeric variables like Age and TotalBilling
+```{r}
+summary(cleaned_data$Age)
+summary(cleaned_data$TotalBilling)
+```
+Calculating the frequency of VIP passengers
+```{r}
+cleaned_data$VIP <- tolower(cleaned_data$VIP)
+vip_frequency <- table(cleaned_data$VIP)
+print(vip_frequency)
+```
+Data Distribution:
+   - Visualize the distribution of Age using a histogram to understand the age distribution of passengers
+```{r}
+hist(cleaned_data$Age,
+     main = "Distribution of Age",
+     xlab = "Age",
+     ylab = "Frequency",
+     col = "Skyblue")
+```
+
+   - Explore the distribution of TotalBilling to see the spending patterns of passengers
+```{r}
+hist(cleaned_data$TotalBilling, 
+     main = "Distribution of TotalBilling", 
+     xlab = "TotalBilling", 
+     ylab = "Frequency",
+     col = "lightgreen",
+     border = "black")
+```
+
+Categorical Analysis:
+Determining the frequency of passengers from each HomePlanet and Destination using bar plots
+```{r}
+# Calculating frequency counts for HomePlanet
+homeplanet_freq <- table(cleaned_data$HomePlanet)
+
+# Converting to a data frame
+homeplanet_df <- data.frame(HomePlanet = names(homeplanet_freq), Frequency = as.vector(homeplanet_freq))
+
+# Bar plot for HomePlanet
+barplot(homeplanet_df$Frequency,
+        names.arg = homeplanet_df$HomePlanet,
+        main = "Frequency of Passengers from Each HomePlanet",
+        xlab = "HomePlanet",
+        ylab = "Frequency",
+        col = "skyblue",
+        ylim = c(0, max(homeplanet_df$Frequency) * 1.1))
+# Calculating frequency counts for Destination
+destination_freq <- table(cleaned_data$Destination)
+
+# Convert to data frame
+destination_df <- data.frame(Destination = names(destination_freq), Frequency = as.vector(destination_freq))
+
+# Bar plot for Destination
+barplot(destination_df$Frequency,
+        names.arg = destination_df$Destination,
+        main = "Frequency of Passengers to Each Destination",
+        xlab = "Destination",
+        ylab = "Frequency",
+        col = "lightgreen",
+        ylim = c(0, max(destination_df$Frequency) * 1.1))
+```
+
+Analyze the proportion of passengers in CryoSleep and VIP status using pie charts or bar plots
+```{r}
+# Remove leading and trailing whitespace from CryoSleep column
+cleaned_data$CryoSleep <- trimws(cleaned_data$CryoSleep)
+```
+
+```{r}
+cryo_proportions <- prop.table(table(cleaned_data$CryoSleep))
+vip_proportions <- prop.table(table(cleaned_data$VIP))
+
+pie(cryo_proportions, main = "Proportion of Passengers in CryoSleep", labels = c("Not in CryoSleep", "In CryoSleep"), col = c("lightblue", "lightgreen"))
+pie(vip_proportions, main = "Proportion of VIP Passengers", labels = c("Not VIP", "VIP"), col = c("lightcoral", "lightyellow"))
+```
+
+Correlation Analysis:
+- Correlation between Age and TotalBilling to see if there's any relationship between age and spending
+```{r}
+# Calculating Pearson Correlation Coefficient
+correlation <- cor(cleaned_data$Age, cleaned_data$TotalBilling)
+
+print(correlation)
+
+plot(cleaned_data$Age, cleaned_data$TotalBilling, xlab = "Age", ylab = "TotalBilling", main = "Scatter Plot of Age vs. TotalBilling")
+```
+
+Group Comparisons:
+- Compare the average TotalBilling between passengers in CryoSleep and those not in CryoSleep
+```{r}
+cryo_sleep <- cleaned_data[cleaned_data$CryoSleep == TRUE, ]
+not_cryo_sleep <- cleaned_data[cleaned_data$CryoSleep == FALSE, ]
+
+average_total_billing_cryo <- mean(cryo_sleep$TotalBilling)
+average_total_billing_not_cryo <- mean(not_cryo_sleep$TotalBilling)
+
+print(paste("Average TotalBilling for passengers in CryoSleep:", round(average_total_billing_cryo, 2)))
+print(paste("Average TotalBilling for passengers not in cryoSleep:", round(average_total_billing_not_cryo, 2)))
+```
+- Compare the average Age of VIP passengers and non-VIP passengers
+```{r}
+t_test_result <- t.test(Age ~ VIP, data = cleaned_data)
+print(t_test_result)
+```
+```{r}
+# Calculate mean age for VIP passengers
+mean_age_vip <- mean(cleaned_data$Age[cleaned_data$VIP == "true"])
+
+# Calculate mean age for non-VIP passengers
+mean_age_non_vip <- mean(cleaned_data$Age[cleaned_data$VIP == "false"])
+
+# Print mean ages
+cat("Mean age for VIP passengers:", mean_age_vip, "\n")
+cat("Mean age for non-VIP passengers:", mean_age_non_vip, "\n")
+```
+Visualization:
+- Create a boxplot of TotalBilling by Cabin to visualize spending patterns across different cabins
+```{r}
+library(ggplot2)
+
+ggplot(cleaned_data, aes(x = Cabin, y = TotalBilling)) + geom_boxplot() + labs(x = "Cabin", y = "TotalBilling", title = "TotalBilling Distribution by Cabin")
+```
+
+
+
